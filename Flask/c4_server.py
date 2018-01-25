@@ -21,7 +21,7 @@ thread_stop_event = Event()
 available_threads = [Thread() for i in range(5)]
 
 book = {}
-filename = '../../c4books/book6x7strong.txt'
+filename = '../c4books/book6x7strong.txt'
 for line in open(filename,'r'):
     key,result = line.split()
     key = long(key)
@@ -33,6 +33,77 @@ for line in open(filename,'r'):
 
 
 app = Flask(__name__)
+
+def get_board_array(board):
+    board_array = [[0 for i in xrange(board.columns)] for j in xrange(board.rows)]
+    
+    for i in xrange(board.rows):
+        for j in xrange(board.columns):
+            #reading bits from bitboards
+            if (board.boards[0] >> i + j * (1 + board.rows)) & 1:
+                board_array[i][j] = 1
+            elif (board.boards[1] >> i + j * (1 + board.rows)) & 1:
+                board_array[i][j] = -1
+            else:
+                board_array[i][j] = 0
+    return board_array
+    
+
+def emit_results(d):
+    socketio.emit('update', d , namespace='/c4')
+
+def solve(board):
+    print 'solving'
+    global book
+    n_moves = len(board.get_log())
+    #board_string = print_board(board)
+    board_array = get_board_array(board)
+    player = board.get_player()
+    legal = board.p_get_legal()
+    solved = set()  
+    results = [' = ' if move in legal else 'xxx' for move in range(7)]
+    d = {'board': board_array,
+         'move':-1,
+         'depth': 0,
+         'results':'|' + '|'.join(results) + '|' , 
+         'player':player,
+         'finished':0}
+    
+    for depth in range(board.rows * board.columns+1 - n_moves):
+        print 'depth',depth
+        print 'results', results
+        d['depth'] = depth
+        for move in legal:
+            d['move'] = move
+            if move in solved:
+                continue
+            board.p_update(move)
+            if board.is_over():
+                print 'OVER!!!'
+                if board.ilog == board.rows*board.columns:
+                    result = 0
+                else:
+                    result = 1
+                emit_results(d)
+                solved.add(move) 
+                    
+            else:
+                result = int(c4.ab_wrapper(board,depth,book=book,ply = 8))
+                result = (43 - abs(result) - n_moves) * (-1 if result > 0 else +1 if result < 0 else 0)
+                if result:
+                    solved.add(move)
+                    emit_results(d)
+                            
+            board.p_erase()
+            results[move] = '{:<+3d}'.format(result) if result != 0 else ' = ' 
+            d['results'] = '|' + '|'.join(results) + '|'
+        emit_results(d)
+    d['finished'] = 1
+    emit_results(d)
+    global available_threads
+    available_threads.append(Thread())
+    socketio.emit('disconnect')
+
 
 def print_board(board):
     big = ''
@@ -85,65 +156,11 @@ def testsocket():
     return render_template('c4.html' ,moves=moves)
     
 socketio = SocketIO(app)
-def solve(board):
-    print 'solving'
-    global book
-    n_moves = len(board.get_log())
-    board_string = print_board(board)
-    player = board.get_player()
-    legal = board.p_get_legal()
-    solved = set()  
-    results = [' = ' if move in legal else 'ill' for move in range(7)]
-    
-    for depth in range(board.rows * board.columns):
-        print 'depth',depth
-        print 'results', results
-        for move in legal:
-            if move in solved:
-                continue
-            board.p_update(move)
-            if board.is_over():
-                print 'OVER!!!'
-                if board.ilog == board.rows*board.columns:
-                    result = 0
-                else:
-                    result = 1
-                solved.add(move) 
-                    
-            else:
-                result = int(c4.ab_wrapper(board,depth,book=book,ply = 8))
-                result = (43 - abs(result) - n_moves) * (-1 if result > 0 else +1 if result < 0 else 0)
-                if result:
-                    solved.add(move)
-                            
-            board.p_erase()
-            results[move] = '{:<+3d}'.format(result) if result != 0 else ' = '       
-            results_string = '|' + '|'.join(results) + '|'              
-
-
-            socketio.emit('update', {'board': board_string,
-                                     'move':move,
-                                     'depth': depth,
-                                     'results':results_string,
-                                     'player':player,
-                                     'finished':0} , 
-                              namespace='/test')
-            
-    socketio.emit('update', {'board': board_string,
-                                     'move':move,
-                                     'depth': depth,
-                                     'results':results_string,
-                                     'player':player,
-                                     'finished':1} , 
-                              namespace='/test')
-    global available_threads
-    available_threads.append(Thread())
-    socketio.emit('disconnect')
 
 clients = []
 
 
-@socketio.on('evaluate', namespace='/test')
+@socketio.on('evaluate', namespace='/c4')
 def evaluate(data):
     #socketio.emit('update', {'board': 'Thinking'})
     global available_threads
@@ -174,7 +191,7 @@ def evaluate(data):
     print moves
     print 'workers available', len(available_threads)
     
-@socketio.on('disconnect')
+@socketio.on('disconnect',namespace='/c4')
 def disconnect():
     print "Disconnected"
     
