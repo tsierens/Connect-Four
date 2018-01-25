@@ -37,20 +37,21 @@
         });
         function update_listener(){
             socket.on('update', function(msg) {
-                console.log("Received results" + msg.results + ' ' + msg.depth);   
-                player = msg.player;
-                board = msg.board;
-                console.log(board);
-                console.log(typeof board[0][0]);
-                board_string = board_to_string(board);
-                depth = msg.depth;
-                move = msg.move
-                results_string = msg.results;
-                message_string = "<font size = 6><tt>" + (player == 0 ? 'x to act' : 'o to act') + "<br/>";
-                message_string += board_string + '<br/><br/>' + results_string + '<br/>' + '  depth = ' + depth;
-                
-                message_string += msg.finished ? "<br/>Done" : "<br/>Thinking"
-                $('#results').html(message_string);
+                console.log("Received results" + msg.results + ' ' + msg.depth);
+                if (msg.id == id && msg.moves == moves){                    
+                    player = msg.player;
+                    board = msg.board;
+                    console.log(board);
+                    board_string = board_to_string(board);
+                    depth = msg.depth;
+                    move = msg.move;
+                    results_string = msg.results;
+                    message_string = "<font size = 6><tt>" + (player == 0 ? 'x to act' : 'o to act') + "<br/>";
+                    message_string += board_string + '<br/><br/>' + results_string + '<br/>' + '  depth = ' + depth;
+
+                    message_string += msg.finished ? "<br/>Done" : "<br/>Thinking"
+                    $('#results').html(message_string);
+                }else {console.log("id or moves did not match" , id , msg.id , moves , msg.moves)}
             });
         }
             

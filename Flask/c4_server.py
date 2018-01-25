@@ -52,7 +52,7 @@ def get_board_array(board):
 def emit_results(d):
     socketio.emit('update', d , namespace='/c4')
 
-def solve(board):
+def solve(board,moves,identity):
     print 'solving'
     global book
     n_moves = len(board.get_log())
@@ -67,7 +67,9 @@ def solve(board):
          'depth': 0,
          'results':'|' + '|'.join(results) + '|' , 
          'player':player,
-         'finished':0}
+         'finished':0,
+         'moves' : moves,
+         'id': identity}
     
     for depth in range(board.rows * board.columns+1 - n_moves):
         print 'depth',depth
@@ -165,6 +167,7 @@ def evaluate(data):
     #socketio.emit('update', {'board': 'Thinking'})
     global available_threads
     moves = data['moves']
+    moves_string = moves
     identity = data['id']
     clients.append(identity)
     print 'Client connected'
@@ -183,7 +186,7 @@ def evaluate(data):
     print 'Starting Thread'
     if len(available_threads)>0:
         thread = available_threads.pop()
-        thread = Thread(target = solve , args = (board,))
+        thread = Thread(target = solve , args = (board,moves_string,identity))
         thread.start()
     else:
         socketio.emit('update', {'board': "No workers availalbe"})
