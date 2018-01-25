@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.slim.js"></script>
+    <script>
+        var socket;
+        var moves;
+        var player;
+        var board_string;
+        var depth;
+        var results_string;
+        var id;
+        $(document).ready(function(){
+            //connect to the socket server.
+            socket = io.connect('http://' + document.domain + ':' + location.port + '/test');
+            moves = '{{ moves }}';
+            document.getElementById("moves").value = moves;
+            player = '0';
+            move = -1;
+            board_string = "";
+            depth = '0';
+            results_string = "";
+            console.log(moves);
+            id = Math.floor(Math.random() * 2**32);
+            console.log(id);
+            $('#moves').keypress(function(e){
+              if(e.keyCode==13){$('#button').click();}
+            });
+            
+            //listen for server updates            
+            socket.on('update', function(msg) {
+                console.log("Received results" + msg.results + ' ' + msg.depth);   
+                player = msg.player;
+                board_string = msg.board;
+                console.log(board);
+                depth = msg.depth;
+                move = msg.move
+                results_string = msg.results;
+                message_string = "<font size = 6><tt>" + (player == 0 ? 'x to act' : 'o to act') + "<br/>";
+                message_string += board_string + '<br/><br/>' + results_string + '<br/>' + '  depth = ' + depth;
+                
+                message_string += msg.finished ? "<br/>Done" : "<br/>Thinking"
+                $('#results').html(message_string);
+            });
+            evaluate(); //request server evaluation
+            
+
+        });
+        
+        function evaluate(){
+            socket.emit('evaluate', {"moves" : moves , "id" : id});
+            
+        }
+        
+        function evaluate_new_moves(){
+            moves = document.getElementById("moves").value;
+            evaluate();
+            document.getElementById("moves").value = moves;
+        }
+    
+    </script>
+
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+</head>
+<body>
+<div class="jumbotron">
+    <h1>Asynchronous Minimax Results</h1>
+</div>
+<div class="container" id=board>
+    <div id="results">
+    </div>
+</div>
+<div class = "container" id= "moves_container">
+      moves:<br>
+      <input type="text" name="moves" value= "" id="moves">
+      <br>
+      <button id="button" onclick="evaluate_new_moves()"> evaluate </button>
+</div>
+
+
+</body>
+</html>
