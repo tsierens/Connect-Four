@@ -60,7 +60,9 @@ def solve(board,moves,identity):
     board_array = get_board_array(board)
     player = board.get_player()
     legal = board.p_get_legal()
-    solved = set()  
+    solved = set()
+    if board.is_over():
+        legal = []
     results = [' = ' if move in legal else 'xxx' for move in range(7)]
     d = {'board': board_array,
          'move':-1,
@@ -86,18 +88,20 @@ def solve(board,moves,identity):
                     result = 0
                 else:
                     result = 1
+                results[move] = '{:<+3d}'.format(result) if result != 0 else ' = ' 
                 emit_results(d)
                 solved.add(move) 
                     
             else:
                 result = int(c4.ab_wrapper(board,depth,book=book,ply = 8))
-                result = (43 - abs(result) - n_moves) * (-1 if result > 0 else +1 if result < 0 else 0)
+                result = (board.rows*board.columns+1 - abs(result) - n_moves) * (-1 if result > 0 else +1 if result < 0 else 0)
                 if result:
+                    results[move] = '{:<+3d}'.format(result) if result != 0 else ' = ' 
                     solved.add(move)
                     emit_results(d)
                             
             board.p_erase()
-            results[move] = '{:<+3d}'.format(result) if result != 0 else ' = ' 
+            
             d['results'] = '|' + '|'.join(results) + '|'
         emit_results(d)
     d['finished'] = 1
